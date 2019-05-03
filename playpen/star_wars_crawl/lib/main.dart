@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -41,79 +41,22 @@ class MyApp extends StatelessWidget {
 class CrawlPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      Flexible(
-        flex: 5,
-        child: Perspective(child: Crawler()),
-      ),
-      Flexible(
-        flex: 1,
-        child: Column(),
-      ),
-    ]);
+    return Perspective(child: Crawler());
   }
 }
 
-class Crawler extends StatefulWidget {
-  final crawlDuration = const Duration(seconds: 5);
-
-  @override
-  createState() => _CrawlerState();
-}
-
-class _CrawlerState extends State<Crawler> {
-  final _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    Timer(const Duration(milliseconds: 100), () {
-      _scrollController.animateTo(_scrollController.position.maxScrollExtent,
-          duration: widget.crawlDuration, curve: Curves.linear);
-    });
-    super.initState();
-  }
-
-  void scrollForward() =>
-      _scrollController.animateTo(_scrollController.position.maxScrollExtent,
-          duration: widget.crawlDuration, curve: Curves.linear);
-
-  void scrollBackward() async {
-    print('Starting scroll backward');
-    await _scrollController.animateTo(
-        _scrollController.position.minScrollExtent,
-        duration: widget.crawlDuration,
-        curve: Curves.linear);
-    print('Scrolling done');
-  }
-
+class Crawler extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<ScrollStartNotification>(
-      onNotification: (start) {
-        print('Scroll started');
-      },
-      child: NotificationListener<ScrollEndNotification>(
-        onNotification: (end) {
-          print('Scroll completed');
-          print(_scrollController.position.pixels);
-          print(_scrollController.position.maxScrollExtent);
-          print(_scrollController.position.minScrollExtent);
-          if (_scrollController.position.pixels ==
-              _scrollController.position.maxScrollExtent) scrollBackward();
-          if (_scrollController.position.pixels ==
-              _scrollController.position.minScrollExtent) scrollForward();
-        },
-        child: ListView(
-          controller: _scrollController,
-          children: [
-            Text(
-              crawlString,
-              style: textStyle,
-              textAlign: TextAlign.center,
-            ),
-          ],
+    return ListView(
+      physics: _CrawlScrollPhysics(),
+      children: [
+        Text(
+          crawlString,
+          style: textStyle,
+          textAlign: TextAlign.center,
         ),
-      ),
+      ],
     );
   }
 }
@@ -131,5 +74,41 @@ class Perspective extends StatelessWidget {
       alignment: FractionalOffset.center,
       child: child,
     );
+  }
+}
+
+class _CrawlScrollPhysics extends ScrollPhysics {
+  _CrawlScrollPhysics() : super(parent: AlwaysScrollableScrollPhysics());
+
+  double get minFlingVelocity => 10;
+
+  @override
+  ScrollPhysics applyTo(ScrollPhysics ancestor) {
+    return _CrawlScrollPhysics();
+  }
+
+  @override
+  Simulation createBallisticSimulation(
+      ScrollMetrics position, double velocity) {
+    if (parent == null) return null;
+    return _CrawlScrollSimulation(position.pixels, velocity / 2);
+  }
+}
+
+class _CrawlScrollSimulation extends Simulation {
+  final double initial;
+  final double velocity;
+
+  _CrawlScrollSimulation(this.initial, this.velocity);
+
+  @override
+  double dx(double time) => velocity;
+
+  @override
+  bool isDone(double time) => false;
+
+  @override
+  double x(double time) {
+    return initial + velocity * time;
   }
 }
